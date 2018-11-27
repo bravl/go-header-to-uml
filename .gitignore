@@ -1,0 +1,8 @@
+*.log
+.DS_Store
+tags
+*.dot
+*.svg
+*.png
+.Idea/
+*.txt
