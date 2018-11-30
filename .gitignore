@@ -8,3 +8,4 @@ tags
 *.txt
 *.swp
 go-header-grapher
+*.uml

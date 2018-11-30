@@ -3,7 +3,9 @@ package header_grapher
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -15,11 +17,13 @@ type variable_node struct {
 	isStruct     bool
 }
 type struct_node struct {
-	varType string
-	vars    []*variable_node
+	variableType string
+	vars         []*variable_node
 }
 
-var gStructs []*struct_node
+type ParserGrapher struct {
+	gStructs []*struct_node
+}
 
 var commentRegex = regexp.MustCompile(`(?ms)\/\*(.*?)\*\/|\/\/(.*?).?^`)
 var structRegex = regexp.MustCompile(`(?ms)^ ?struct .*?\{(.*?)};`)
@@ -29,6 +33,12 @@ var enumNameRegex = regexp.MustCompile(`(?ms)^ ?enum(.*?)\{`)
 var variableRegex = regexp.MustCompile(`(?ms)^.?([^\s]+) ?([^\s]+) ?([^\s]+);`)
 var bracketRegex = regexp.MustCompile(`(?ms)\[(.*?)\]`)
 var isStructVarRegex = regexp.MustCompile(`(?ms)^.?struct ?([^\s]+) ?([^\s]+)[;\[]`)
+
+const plantUMLClassText string = `class PLACEHOLDER1 {
+PLACEHOLDER2
+}`
+
+const plantUMLVarLinkText string = `note bottom of PLACEHOLDER1 : XD array \n PLACEHOLDER2`
 
 func standardizeSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
@@ -55,7 +65,7 @@ func printVar(v *variable_node) {
 	fmt.Println()
 }
 
-func matchStructs(fileContents string) {
+func (pg *ParserGrapher) matchStructs(fileContents string) {
 	tFile := enumRegex.ReplaceAllLiteralString(fileContents, "")
 	names := structNameRegex.FindAllString(tFile, -1)
 	structs := structRegex.FindAllStringSubmatch(tFile, -1)
@@ -64,6 +74,7 @@ func matchStructs(fileContents string) {
 		str = strings.TrimSpace(str)
 
 		tmpStruct := new(struct_node)
+		tmpStruct.variableType = structNameRegex.FindStringSubmatch(str)[1]
 
 		for _, tmp := range strings.Split(structs[index][1], "\n") {
 			tmpVar := new(variable_node)
@@ -89,22 +100,76 @@ func matchStructs(fileContents string) {
 				tmpVar.variableName = variables[1]
 			}
 
+			tmpVar.variableName = strings.Replace(tmpVar.variableName, ";", "", -1)
 			tmpStruct.vars = append(tmpStruct.vars, tmpVar)
 		}
-		gStructs = append(gStructs, tmpStruct)
+		pg.gStructs = append(pg.gStructs, tmpStruct)
 	}
 
 }
 
-func RunGrapher(file, tool string) bool {
+func (pg *ParserGrapher) linkNodesPlantUML(file *os.File) {
+	if file == nil {
+		return
+	}
+
+	var tmpString string = ""
+
+	for _, str := range pg.gStructs {
+		for _, v := range str.vars {
+			if v.isStruct {
+				tmpString += str.variableType + " --> " + v.variableType + "\n"
+				if v.arrayDepth != 0 {
+					tmp := strings.Replace(plantUMLVarLinkText, "PLACEHOLDER1", v.variableType, -1)
+					tmp = strings.Replace(tmp, "X", strconv.Itoa(v.arrayDepth), -1)
+					tmp = strings.Replace(tmp, "PLACEHOLDER2", strings.Join(v.arrayDepends, " "), -1)
+					tmpString += tmp + "\n"
+				}
+			}
+		}
+	}
+	file.WriteString(tmpString + "\n")
+}
+
+func (pg *ParserGrapher) RunGrapher(outFile, tool string) bool {
+	if outFile == "none" {
+		return false
+	}
+
+	output, _ := os.Create(outFile)
+
+	for _, str := range pg.gStructs {
+		tmpString := strings.Replace(plantUMLClassText, "PLACEHOLDER1", str.variableType, -1)
+		var tmp string = ""
+
+		for _, v := range str.vars {
+			tmp += v.variableName + " : " + v.variableType
+			for i := 0; i < v.arrayDepth; i++ {
+				tmp += "[]"
+			}
+			tmp += "\n"
+		}
+		tmpString = strings.Replace(tmpString, "PLACEHOLDER2", tmp, -1)
+		output.WriteString(tmpString + "\n")
+	}
+	pg.linkNodesPlantUML(output)
+
+	return true
+}
+
+func (pg *ParserGrapher) RunParser(inFile string) bool {
+	if inFile == "none" {
+		return false
+	}
 	fmt.Println("Running grapher")
-	bFile, _ := ioutil.ReadFile(file)
+	bFile, _ := ioutil.ReadFile(inFile)
 	sFile := string(bFile)
-	matchStructs(prepareFile(sFile))
-	for _, str := range gStructs {
+	pg.matchStructs(prepareFile(sFile))
+
+	/*	for _, str := range pg.gStructs {
 		for _, v := range str.vars {
 			printVar(v)
 		}
-	}
+	}*/
 	return true
 }
