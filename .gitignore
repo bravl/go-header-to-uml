@@ -6,3 +6,5 @@ tags
 *.png
 .Idea/
 *.txt
+*.swp
+go-header-grapher
