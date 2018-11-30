@@ -19,11 +19,15 @@ type struct_node struct {
 	vars    []*variable_node
 }
 
-var commentRegex = regexp.MustCompile(`(?m)\/\*(.*?)\*\/\s|\/\/(.*)`)
-var structRegex = regexp.MustCompile(`(?ms)^ ?struct .*? \{(.*?)};`)
+var gStructs []*struct_node
+
+var commentRegex = regexp.MustCompile(`(?ms)\/\*(.*?)\*\/|\/\/(.*?).?^`)
+var structRegex = regexp.MustCompile(`(?ms)^ ?struct .*?\{(.*?)};`)
 var structNameRegex = regexp.MustCompile(`(?ms)^ ?struct ([^\s]+).?{`)
 var enumRegex = regexp.MustCompile(`(?ms)^ ?struct ([^\s]+) ?\{.?enum ([^\s]+) ?{(.*?)};.?};`)
 var enumNameRegex = regexp.MustCompile(`(?ms)^ ?enum(.*?)\{`)
+var variableRegex = regexp.MustCompile(`(?ms)^ ?([^\s]+) ?([^\s]+);`)
+var bracketRegex = regexp.MustCompile(`(?ms)\[(.*?)\]`)
 
 func standardizeSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
@@ -46,15 +50,22 @@ func matchStructs(fileContents string) {
 	tFile := enumRegex.ReplaceAllLiteralString(fileContents, "")
 	names := structNameRegex.FindAllString(tFile, -1)
 	structs := structRegex.FindAllStringSubmatch(tFile, -1)
-	for _, str := range structs {
-		fmt.Println(str[1])
-		fmt.Println()
-	}
-	for _, str := range names {
+	fmt.Println(len(names))
+	fmt.Println(len(structs))
+	for index, str := range names {
 		str = strings.Replace(str, "\n", "", -1)
 		str = strings.TrimSpace(str)
 		fmt.Println(strings.Replace(str, "{", "", -1))
+
+		tmpStruct := new(struct_node)
+
+		for _, tmp := range strings.Split(structs[index][1], "\n") {
+			arrayParams := bracketRegex.FindAllString(tmp, -1)
+			fmt.Println(arrayParams)
+		}
+		gStructs = append(gStructs, tmpStruct)
 	}
+
 }
 
 func RunGrapher(file, tool string) bool {
