@@ -3,14 +3,15 @@ package main
 import (
 	"./header-grapher"
 	"flag"
-	"log"
 )
 
 func main() {
+	pg := new(header_grapher.ParserGrapher)
 	inputFile := flag.String("in", "none", "The file that will be parsed")
-	grapherTool := flag.String("tool", "graphviz", "The tool used to graph the diagram")
+	outFile := flag.String("out", "none", "Graph text file")
+	grapherTool := flag.String("tool", "plantuml", "The tool used to graph the diagram")
 	flag.Parse()
 
-	log.Println("Input file: ", *inputFile)
-	header_grapher.RunGrapher(*inputFile, *grapherTool)
+	pg.RunParser(*inputFile)
+	pg.RunGrapher(*outFile, *grapherTool)
 }
