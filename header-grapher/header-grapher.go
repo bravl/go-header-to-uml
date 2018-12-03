@@ -166,10 +166,5 @@ func (pg *ParserGrapher) RunParser(inFile string) bool {
 	sFile := string(bFile)
 	pg.matchStructs(prepareFile(sFile))
 
-	/*	for _, str := range pg.gStructs {
-		for _, v := range str.vars {
-			printVar(v)
-		}
-	}*/
 	return true
 }
